@@ -25,18 +25,21 @@ db = scoped_session(sessionmaker(bind=engine))
 def index():
     try:
         user_id = session['user-id']
+        user = db.execute("SELECT name FROM users WHERE id=:id", {"id": user_id}).first()
+        name = user.name
     except:
         return render_template("login.html")
-    return f"user id: {user_id}"
+    return render_template("login.html", name=name)
 
 @app.route("/login/", methods=["GET", "POST"])
 def login():
     error = ""
     try:
+        # if user already login, go directly to search page
         user_id = session['user-id']
         user = db.execute("SELECT name FROM users WHERE id=:id", {"id": user_id}).first()
-        message = f"You are already login as {user.name}"
-        return render_template("success.html", message=message)
+        name = user.name
+        return render_template("login.html", name=name)
     except:
         if request.method == "POST":
             name = request.form.get("name")
@@ -48,8 +51,7 @@ def login():
                 error = "Incorrect login informations, please try again"
             else:
                 session['user-id'] = user.id
-                message = f"You are successfully login as {user.name}"
-                return render_template("success.html", message=message)
+                return render_template("search.html", name=name)
     return render_template("login.html", error=error)
 
 @app.route("/logout")
@@ -77,7 +79,23 @@ def registrate():
             error = "registration impossible, please try with other name."
     return render_template("registrate.html", error=error)
 
-
+@app.route("/search", methods=["GET"])
+def search(isbn="", title="", author=""):
+    isbn = request.args['isbn']
+    title = request.args["title"]
+    author = request.args["author"]
+    books = []
+    if isbn:
+        books += db.execute("SELECT * FROM books WHERE isbn LIKE '%' || :isbn || '%'", {"isbn":isbn})
+    if title:
+        books += db.execute(
+            "SELECT * FROM books WHERE title LIKE '%' || :title || '%'", {"title":title}
+        )
+    if author:
+        books += db.execute(
+            "SELECT * FROM books WHERE author LIKE '%' || :author || '%'", {"author":author}
+        )
+    return render_template("books.html", books=books)
 
 
     
